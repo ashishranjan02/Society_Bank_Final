@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import { Edit, Delete } from "@mui/icons-material";
 import memberData from "../../public/Member.json";
-
+import { Autocomplete } from "@mui/material";
 export default function CaseFormDetail() {
   const [activeForm, setActiveForm] = useState("");
   const [searchMember, setSearchMember] = useState("");
@@ -480,6 +480,8 @@ export default function CaseFormDetail() {
           </form>
         </Paper>
       )}
+
+
 {/* ---------- SHOW ALL CASES BY MEMBER WITH SEARCH ---------- */}
 {openForm && activeForm === "showCases" && (
   <Paper elevation={3} sx={{ p: 4, borderRadius: 2, mt: 4 }}>
@@ -490,15 +492,21 @@ export default function CaseFormDetail() {
       </Button>
     </Box>
 
-    {/* Search Bar */}
+    {/* Autocomplete Search */}
     <Box mb={3}>
-      <TextField
-        fullWidth
-        placeholder="Search member by name..."
-        variant="outlined"
-        size="small"
+      <Autocomplete
+        options={members.map((m) => m.name || m.memberName)}
         value={searchMember}
-        onChange={(e) => setSearchMember(e.target.value)}
+        onChange={(event, newValue) => setSearchMember(newValue || "")}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            variant="outlined"
+            size="small"
+            placeholder="Search member by name..."
+          />
+        )}
+        freeSolo
       />
     </Box>
 
@@ -516,7 +524,6 @@ export default function CaseFormDetail() {
           (r) => r.selectedMember === memberName
         );
 
-        // Only render member if they have at least one case
         if (memberCases138.length === 0 && memberCasesRCS.length === 0) return null;
 
         return (
@@ -534,7 +541,6 @@ export default function CaseFormDetail() {
               {memberName}
             </Typography>
 
-            {/* Section 138 Cases */}
             {memberCases138.length > 0 && (
               <Box mt={2}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
@@ -555,19 +561,7 @@ export default function CaseFormDetail() {
                         <TableCell>{c.caseNo}</TableCell>
                         <TableCell>{c.caseName}</TableCell>
                         <TableCell>{c.courtName}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={c.status || "N/A"}
-                            color={
-                              c.status === "Disposed"
-                                ? "success"
-                                : c.status === "Pending"
-                                ? "warning"
-                                : "error"
-                            }
-                            size="small"
-                          />
-                        </TableCell>
+                        <TableCell>{c.status || "N/A"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -575,7 +569,6 @@ export default function CaseFormDetail() {
               </Box>
             )}
 
-            {/* RCS Cases */}
             {memberCasesRCS.length > 0 && (
               <Box mt={3}>
                 <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
@@ -596,19 +589,7 @@ export default function CaseFormDetail() {
                         <TableCell>{r.rcsCaseNo}</TableCell>
                         <TableCell>{r.borrowerName}</TableCell>
                         <TableCell>{r.awardAmount}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={r.recoveryStatus || "N/A"}
-                            color={
-                              r.recoveryStatus?.includes("Recovered")
-                                ? "success"
-                                : r.recoveryStatus?.includes("Pending")
-                                ? "warning"
-                                : "error"
-                            }
-                            size="small"
-                          />
-                        </TableCell>
+                        <TableCell>{r.recoveryStatus || "N/A"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -620,6 +601,7 @@ export default function CaseFormDetail() {
       })}
   </Paper>
 )}
+
 
 
       {/* ---------- Section 138 TABLE ---------- */}
