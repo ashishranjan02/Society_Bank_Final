@@ -1,4 +1,3 @@
-// src/pages/ApprovalWorkflow.jsx
 import React, { useState, useEffect } from "react";
 import {
     Container,
@@ -87,6 +86,7 @@ export default function ApprovalWorkflow() {
                         amount: parseFloat(loan.emi),
                         paid: false,
                         paidOn: null,
+                        overdue: false,
                     };
                 });
 
@@ -138,6 +138,7 @@ export default function ApprovalWorkflow() {
                     repayments[repayIndex].paidOn = new Date()
                         .toISOString()
                         .split("T")[0];
+                    repayments[repayIndex].overdue = false;
                 }
 
                 const totalPaid = repayments
@@ -149,6 +150,24 @@ export default function ApprovalWorkflow() {
                 );
 
                 return { ...loan, repayments, outstanding };
+            }
+            return loan;
+        });
+
+        setLoans(updatedLoans);
+        updateMembersStorage(updatedLoans);
+        loadLoans();
+    };
+
+    // ✅ NEW FUNCTION: Mark Overdue
+    const handleMarkOverdue = (repayIndex) => {
+        const updatedLoans = loans.map((loan) => {
+            if (loan.loanId === selectedLoan.loanId) {
+                const repayments = [...loan.repayments];
+                if (!repayments[repayIndex].paid) {
+                    repayments[repayIndex].overdue = true;
+                }
+                return { ...loan, repayments };
             }
             return loan;
         });
@@ -204,7 +223,6 @@ export default function ApprovalWorkflow() {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
 
-        // HEADER BAR
         doc.setFillColor(40, 53, 147);
         doc.rect(0, 0, pageWidth, 30, "F");
         doc.setTextColor(255, 255, 255);
@@ -212,7 +230,6 @@ export default function ApprovalWorkflow() {
         doc.setFontSize(18);
         doc.text("Loan Repayment Report", pageWidth / 2, 20, { align: "center" });
 
-        // DETAILS BOX
         doc.setFont("helvetica", "normal");
         doc.setFontSize(12);
         doc.setTextColor(0, 0, 0);
@@ -237,24 +254,20 @@ export default function ApprovalWorkflow() {
         const leftCol = info.slice(0, 5);
         const rightCol = info.slice(5);
 
-        // calculate height for rectangle
         const boxHeight = Math.max(leftCol.length, rightCol.length) * lineGap + 15;
         doc.setDrawColor(180);
         doc.roundedRect(12, startY - 5, pageWidth - 24, boxHeight, 3, 3);
 
-        // Draw left column
         let y = startY + 10;
         leftCol.forEach(([label, value]) => {
             doc.setFont("helvetica", "bold");
             doc.text(`${label}:`, leftX, y);
             doc.setFont("helvetica", "normal");
-            // no padding gaps — align just after label
             const labelWidth = doc.getTextWidth(`${label}: `);
             doc.text(String(value), leftX + labelWidth + 2, y);
             y += lineGap;
         });
 
-        // Draw right column
         y = startY + 10;
         rightCol.forEach(([label, value]) => {
             doc.setFont("helvetica", "bold");
@@ -265,16 +278,17 @@ export default function ApprovalWorkflow() {
             y += lineGap;
         });
 
-        // TABLE
         const tableStartY = startY + boxHeight + 10;
         const today = new Date().toISOString().split("T")[0];
         const tableData = selectedLoan.repayments.map((r, i) => {
             const missed = !r.paid && new Date(today) > new Date(r.date);
             const status = r.paid
                 ? `Paid (${r.paidOn})`
+                : r.overdue
+                ? "Overdue"
                 : missed
-                    ? "Missed"
-                    : "Pending";
+                ? "Missed"
+                : "Pending";
             return [i + 1, r.date, `${r.amount}`, status];
         });
 
@@ -293,14 +307,17 @@ export default function ApprovalWorkflow() {
             didParseCell: (data) => {
                 if (data.section === "body") {
                     const status = data.row.raw[3];
-                    if (status.includes("Paid")) data.cell.styles.textColor = [0, 128, 0];
-                    else if (status.includes("Missed")) data.cell.styles.textColor = [200, 0, 0];
+                    if (status.includes("Paid"))
+                        data.cell.styles.textColor = [0, 128, 0];
+                    else if (status.includes("Missed"))
+                        data.cell.styles.textColor = [200, 0, 0];
+                    else if (status.includes("Overdue"))
+                        data.cell.styles.textColor = [255, 165, 0];
                     else data.cell.styles.textColor = [180, 140, 0];
                 }
             },
         });
 
-        // FOOTER
         const finalY = doc.lastAutoTable.finalY || tableStartY + 20;
         doc.setFontSize(10);
         doc.setTextColor(100);
@@ -313,7 +330,6 @@ export default function ApprovalWorkflow() {
 
         doc.save(`Loan_${selectedLoan.loanId}_Repayment.pdf`);
     };
-
 
     return (
         <Container maxWidth="xl" sx={{ mt: 4 }}>
@@ -330,10 +346,10 @@ export default function ApprovalWorkflow() {
                             f === "approved"
                                 ? "success"
                                 : f === "rejected"
-                                    ? "error"
-                                    : f === "pending"
-                                        ? "warning"
-                                        : "primary"
+                                ? "error"
+                                : f === "pending"
+                                ? "warning"
+                                : "primary"
                         }
                         onClick={() => setFilter(f)}
                         size="small"
@@ -454,9 +470,11 @@ export default function ApprovalWorkflow() {
                                             borderRadius: 2,
                                             backgroundColor: r.paid
                                                 ? "#e8f5e9"
+                                                : r.overdue
+                                                ? "#fff3e0"
                                                 : missed
-                                                    ? "#ffebee"
-                                                    : "#fffde7",
+                                                ? "#ffebee"
+                                                : "#fffde7",
                                         }}
                                     >
                                         <Box>
@@ -481,19 +499,32 @@ export default function ApprovalWorkflow() {
                                                 </Typography>
                                             )}
                                         </Box>
+
                                         {r.paid ? (
                                             <Chip label="Paid" color="success" size="small" />
+                                        ) : r.overdue ? (
+                                            <Chip label="Overdue" color="warning" size="small" />
                                         ) : missed ? (
                                             <Chip label="Missed" color="error" size="small" />
                                         ) : (
-                                            <Button
-                                                variant="contained"
-                                                color="success"
-                                                size="small"
-                                                onClick={() => handleMarkPaid(index)}
-                                            >
-                                                Mark Paid
-                                            </Button>
+                                            <Stack direction="row" spacing={1}>
+                                                <Button
+                                                    variant="contained"
+                                                    color="success"
+                                                    size="small"
+                                                    onClick={() => handleMarkPaid(index)}
+                                                >
+                                                    Paid
+                                                </Button>
+                                                <Button
+                                                    variant="outlined"
+                                                    color="warning"
+                                                    size="small"
+                                                    onClick={() => handleMarkOverdue(index)}
+                                                >
+                                                    Overdue
+                                                </Button>
+                                            </Stack>
                                         )}
                                     </Box>
                                 );

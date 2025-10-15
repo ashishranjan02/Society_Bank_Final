@@ -46,7 +46,6 @@ import {
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import membersData from "../../public/Member.json";
-import { useNavigate } from 'react-router-dom';
 
 // Styled Components
 const StyledPaper = styled(Paper)(({ theme }) => ({

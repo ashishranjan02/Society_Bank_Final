@@ -96,7 +96,7 @@ export default function SmartLoanApplication() {
       } else {
         setGuarantors([]);
         // Optional alert
-        // alert("⚠️ First create guarantor for this member!");
+        // alert("First create guarantor for this member!");
       }
     }
   };
